@@ -1,32 +1,18 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
-header('Content-Type: application/json; charset=utf-8');
+require_api_login(['admin', 'vendeur']);
+require_api_csrf();
 
-if (!is_logged_in() || !has_role('admin', 'vendeur')) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Accès refusé.']);
-    exit;
-}
-
-$raw = file_get_contents('php://input');
-$input = json_decode($raw, true);
-
-if (!is_array($input) || empty($input['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $input['csrf_token'])) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Jeton de sécurité invalide. Merci de recharger la page.']);
-    exit;
-}
-
+$input = read_json_body();
 $venteId = (int)($input['vente_id'] ?? 0);
-$mode = in_array($input['mode_paiement'] ?? '', ['especes','mobile_money','carte','virement','autre'], true)
+$mode = in_array($input['mode_paiement'] ?? '', ['especes', 'mobile_money', 'carte', 'virement', 'autre'], true)
     ? $input['mode_paiement'] : null;
 $montant = round((float)($input['montant'] ?? 0), 2);
 $note = trim((string)($input['note'] ?? ''));
 if ($note !== '') { $note = mb_substr($note, 0, 150); }
 
 if (!$venteId || !$mode || $montant <= 0) {
-    echo json_encode(['success' => false, 'message' => 'Données de versement invalides.']);
-    exit;
+    json_response(['success' => false, 'message' => 'Données de versement invalides.']);
 }
 
 $pdo = Database::getConnection();
@@ -64,14 +50,16 @@ try {
     $pdo->commit();
     log_activity('vente_versement', "Versement de " . fmt_money($montant) . " sur la vente {$vente['numero_facture']}");
 
-    echo json_encode([
+    json_response([
         'success' => true,
         'montant_paye' => $nouveauPaye,
-        'reste_a_payer' => round((float)$vente['montant_total'] - $nouveauPaye, 2),
+        'reste_a_payer' => max(0, round((float)$vente['montant_total'] - $nouveauPaye, 2)),
         'statut_paiement' => $nouveauStatut,
     ]);
 } catch (Exception $e) {
-    $pdo->rollBack();
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log('versement_ajouter: ' . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => $e->getMessage() ?: 'Erreur lors de l\'enregistrement du versement.']);
+    json_response(['success' => false, 'message' => $e instanceof RuntimeException ? $e->getMessage() : 'Erreur lors de l\'enregistrement du versement.']);
 }

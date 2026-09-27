@@ -251,6 +251,21 @@ function redirect(string $path): void
     exit;
 }
 
+/**
+ * Revient à la page précédente (avec ses filtres) si elle fait partie des pages
+ * autorisées du même dossier ; sinon redirige vers $default. Seuls le nom de
+ * fichier et les paramètres sont repris : aucune redirection vers un autre site.
+ */
+function redirect_back(string $default, array $pages = []): void
+{
+    $ref = parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''));
+    $file = basename((string)($ref['path'] ?? ''));
+    if ($file !== '' && in_array($file, $pages, true)) {
+        redirect($file . (!empty($ref['query']) ? '?' . $ref['query'] : ''));
+    }
+    redirect($default);
+}
+
 // ---------------------------------------------------------------
 // Formatage
 // ---------------------------------------------------------------
