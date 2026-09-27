@@ -39,8 +39,35 @@ function require_login(): void
 {
     if (!is_logged_in()) {
         $depth = require_root_depth();
+        // Mémorise la page demandée pour y revenir après la connexion
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+            $script = str_replace('\\', '/', (string)realpath($_SERVER['SCRIPT_FILENAME'] ?? ''));
+            $root = str_replace('\\', '/', (string)realpath(APP_ROOT));
+            if ($script !== '' && str_starts_with($script, $root . '/')) {
+                $cible = substr($script, strlen($root) + 1);
+                $qs = (string)($_SERVER['QUERY_STRING'] ?? '');
+                $_SESSION['login_next'] = $cible . ($qs !== '' ? '?' . $qs : '');
+            }
+        }
         redirect($depth . 'login.php');
     }
+}
+
+/** Page de retour après connexion (chemin interne à l'application uniquement). */
+function login_next_url(?string $next): ?string
+{
+    $next = (string)$next;
+    if ($next === '' || strlen($next) > 500 || str_contains($next, '..') || str_contains($next, '//') || str_contains($next, '\\')) {
+        return null;
+    }
+    if (!preg_match('#^[A-Za-z0-9_\-/]+\.php(\?[^\s<>"\']*)?$#', $next)) {
+        return null;
+    }
+    $page = strtok($next, '?');
+    if (in_array($page, ['login.php', 'logout.php', 'index.php'], true) || str_starts_with($page, 'api/')) {
+        return null;
+    }
+    return $next;
 }
 
 /**

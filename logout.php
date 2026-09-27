@@ -15,4 +15,4 @@ if (ini_get('session.use_cookies')) {
     setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
 }
 
-redirect('login.php');
+redirect('login.php?bye=1');

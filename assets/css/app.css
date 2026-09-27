@@ -823,6 +823,7 @@ textarea.form-control{ min-height:2.6rem; }
 }
 .sp-input-icon > .form-control, .sp-input-icon > .form-select{ padding-left:2.4rem; }
 .sp-input-icon > .form-control-lg{ padding-left:2.75rem; }
+.sp-input-icon > .sp-password > .form-control{ padding-left:2.4rem; }
 .sp-input-icon > .form-control-lg ~ i, .sp-input-icon > i.lg{ left:1rem; font-size:1.02rem; }
 .sp-input-icon:focus-within > i{ color:var(--sp-primary-text); }
 .sp-input-icon .sp-input-end{ position:absolute; right:.45rem; top:50%; transform:translateY(-50%); display:flex; gap:.3rem; align-items:center; z-index:6; }
@@ -1515,6 +1516,10 @@ a.sp-list-item:hover{ background:var(--sp-surface-2); color:var(--sp-text); }
 .sp-login-card .btn-login{ height:3.1rem; font-size:1rem; }
 .sp-login-hint{ margin-top:1.5rem; font-size:.78rem; color:var(--sp-text-muted); padding:.8rem .9rem; border-radius:var(--sp-radius-md); background:var(--sp-accent-soft); border:1px dashed rgba(var(--sp-accent-rgb),.5); }
 .sp-login-top{ position:absolute; top:1.2rem; right:1.2rem; }
+.sp-login-greet{ display:inline-flex; align-items:center; gap:.45rem; font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--sp-accent-text); margin-bottom:.6rem; }
+.sp-login-greet i{ animation:spFloat 4s ease-in-out infinite; }
+.sp-login-card .btn-login i{ transition:transform .3s var(--sp-ease-out); }
+.sp-login-card .btn-login:hover i{ transform:translateX(4px); }
 /* Anciennes classes (compatibilité) */
 .sp-login-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1rem; }
 

@@ -37,10 +37,15 @@ function secure_session_start(): void
 
     // Expiration par inactivité
     if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > SESSION_LIFETIME)) {
+        $etaitConnecte = !empty($_SESSION['user_id']);
         $_SESSION = [];
         session_unset();
         session_destroy();
         session_start();
+        session_regenerate_id(true);
+        if ($etaitConnecte) {
+            $_SESSION['session_expiree'] = true;
+        }
     }
     $_SESSION['last_activity'] = time();
 

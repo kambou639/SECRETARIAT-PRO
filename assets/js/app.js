@@ -594,6 +594,8 @@
         wrap.appendChild(btn);
         holder = wrap;
       }
+      // Champ avec icône : les indications se placent sous le conteneur (l'icône reste centrée)
+      if (holder.parentNode.classList && holder.parentNode.classList.contains('sp-input-icon')) holder = holder.parentNode;
       var caps = document.createElement('div');
       caps.className = 'sp-capslock';
       caps.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i>Verrouillage des majuscules activé';
@@ -1340,7 +1342,7 @@
     initSidebar();
     initTopbar();
     initNavigationProgress();
-    initDefaultShortcuts();
+    if (cfg.role) initDefaultShortcuts();
     initMisc();
     SP.forms();
     SP.combo();
