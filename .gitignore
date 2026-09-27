@@ -1,0 +1,7 @@
+# Journal d'erreurs PHP généré à l'exécution (voir config/config.php)
+php_errors.log
+# Fichiers téléversés par les utilisateurs (les dossiers restent suivis via .gitkeep)
+uploads/articles/*
+uploads/courriers/*
+uploads/logo/*
+!uploads/*/.gitkeep

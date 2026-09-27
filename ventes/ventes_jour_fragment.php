@@ -13,7 +13,7 @@ if (!is_logged_in() || !has_role('admin', 'vendeur')) {
 $pdo = Database::getConnection();
 
 $stmtJour = $pdo->prepare("
-    SELECT v.id, v.numero_facture, v.created_at, v.montant_total, v.remise_montant, v.mode_paiement, v.statut,
+    SELECT v.id, v.numero_facture, v.created_at, v.montant_total, v.remise_montant, v.mode_paiement, v.statut, v.statut_paiement,
            u.full_name AS vendeur_nom, c.nom AS client_nom
     FROM ventes v
     LEFT JOIN users u ON u.id = v.user_id

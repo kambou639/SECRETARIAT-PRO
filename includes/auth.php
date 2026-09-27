@@ -58,17 +58,23 @@ function require_role(...$roles): void
 }
 
 /**
- * Calcule le préfixe relatif ("../" x N) pour retrouver la racine
- * de l'application depuis un script situé dans un sous-dossier.
+ * Variante pour les points d'accès AJAX : répond en JSON (401/403)
+ * au lieu de rediriger vers une page HTML.
  */
-function require_root_depth(): string
+function require_api_login(array $roles = []): void
 {
-    $scriptPath = str_replace('\\', '/', $_SERVER['SCRIPT_FILENAME'] ?? '');
-    $root = str_replace('\\', '/', realpath(APP_ROOT));
-    $rel = trim(str_replace($root, '', dirname($scriptPath)), '/');
-    if ($rel === '') {
-        return '';
+    if (!is_logged_in()) {
+        json_response(['success' => false, 'message' => 'Session expirée, merci de vous reconnecter.', 'login' => true], 401);
     }
-    $depth = count(explode('/', $rel));
-    return str_repeat('../', $depth);
+    if (!empty($roles) && !has_role($roles)) {
+        json_response(['success' => false, 'message' => 'Accès refusé.'], 403);
+    }
+}
+
+/** Exige un POST avec jeton CSRF valide (réponse JSON sinon). */
+function require_api_csrf(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !csrf_verify()) {
+        json_response(['success' => false, 'message' => 'Jeton de sécurité invalide. Merci de recharger la page.'], 403);
+    }
 }

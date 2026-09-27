@@ -8,11 +8,36 @@ Options -Indexes
     Require all denied
 </FilesMatch>
 
+# Types MIME (manifeste d'application installable, polices)
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
+    AddType font/woff2 .woff2
+    AddType image/svg+xml .svg
+</IfModule>
+
 # En-têtes de sécurité de base
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
     Header set X-Frame-Options "SAMEORIGIN"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
+
+# Mise en cache longue des ressources statiques : leurs URL portent un
+# paramètre de version (?v=...) qui change à chaque mise à jour.
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+</IfModule>
+
+# Compression des réponses texte
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript text/javascript application/json image/svg+xml application/manifest+json
 </IfModule>
 
 # Remarque : l'affichage des erreurs PHP est déjà désactivé dans config.php (ini_set).

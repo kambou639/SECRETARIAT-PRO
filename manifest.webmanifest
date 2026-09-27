@@ -1,0 +1,22 @@
+{
+  "name": "Secrétariat Pro",
+  "short_name": "Secrétariat",
+  "description": "Gestion de secrétariat, courrier, rendez-vous et vente d'articles.",
+  "lang": "fr",
+  "start_url": "./index.php",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F5F0E6",
+  "theme_color": "#6E1423",
+  "icons": [
+    { "src": "assets/img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/img/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/img/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Caisse", "url": "./ventes/caisse.php", "icons": [{ "src": "assets/img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Agenda", "url": "./rendezvous/agenda.php", "icons": [{ "src": "assets/img/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

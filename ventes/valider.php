@@ -1,26 +1,18 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
-header('Content-Type: application/json; charset=utf-8');
+require_api_login(['admin', 'vendeur']);
 
-if (!is_logged_in() || !has_role('admin', 'vendeur')) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Accès refusé.']);
-    exit;
-}
-
-$raw = file_get_contents('php://input');
-$input = json_decode($raw, true);
-
-if (!is_array($input) || empty($input['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', $input['csrf_token'])) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Jeton de sécurité invalide. Merci de recharger la page.']);
-    exit;
+$input = read_json_body();
+if (empty($input['csrf_token']) || !hash_equals($_SESSION['csrf_token'] ?? '', (string)$input['csrf_token'])) {
+    json_response(['success' => false, 'message' => 'Jeton de sécurité invalide. Merci de recharger la page.'], 403);
 }
 
 $items = $input['items'] ?? [];
 $clientId = !empty($input['client_id']) ? (int)$input['client_id'] : null;
 $remiseType = in_array($input['remise_type'] ?? '', ['pourcentage', 'montant'], true) ? $input['remise_type'] : 'aucune';
 $remiseValeur = max(0, (float)($input['remise_valeur'] ?? 0));
+$observations = trim((string)($input['observations'] ?? ''));
+$observations = $observations === '' ? null : mb_substr($observations, 0, 255);
 
 // Paiements : liste de {mode, montant} - permet le paiement multiple (espèces + mobile money, etc.)
 // et la vente à crédit (liste vide ou montant partiel).
@@ -36,8 +28,7 @@ foreach ($paiementsInput as $p) {
 }
 
 if (empty($items) || !is_array($items)) {
-    echo json_encode(['success' => false, 'message' => 'Le panier est vide.']);
-    exit;
+    json_response(['success' => false, 'message' => 'Le panier est vide.']);
 }
 
 $pdo = Database::getConnection();
@@ -45,26 +36,38 @@ $pdo = Database::getConnection();
 try {
     $pdo->beginTransaction();
 
-    $montantTotal = 0;
-    $lignes = [];
+    if ($clientId) {
+        $chk = $pdo->prepare('SELECT id FROM clients WHERE id = ?');
+        $chk->execute([$clientId]);
+        if (!$chk->fetch()) {
+            throw new RuntimeException('Le client sélectionné n\'existe plus. Merci de le choisir à nouveau.');
+        }
+    }
 
+    // Regroupe les éventuelles lignes en double d'un même article
+    $quantites = [];
     foreach ($items as $item) {
         $articleId = (int)($item['id'] ?? 0);
         $qte = (int)($item['qte'] ?? 0);
-        if ($articleId <= 0 || $qte <= 0) {
-            continue;
+        if ($articleId > 0 && $qte > 0) {
+            $quantites[$articleId] = ($quantites[$articleId] ?? 0) + $qte;
         }
+    }
 
+    $montantTotal = 0;
+    $lignes = [];
+
+    foreach ($quantites as $articleId => $qte) {
         // Verrouille la ligne pour éviter les ventes concurrentes en survente
         $stmt = $pdo->prepare('SELECT id, nom, type, prix_vente, stock FROM articles WHERE id = ? AND actif = 1 FOR UPDATE');
         $stmt->execute([$articleId]);
         $article = $stmt->fetch();
 
         if (!$article) {
-            throw new RuntimeException('Un article du panier n\'existe plus.');
+            throw new RuntimeException('Un article du panier n\'existe plus ou a été désactivé.');
         }
         if ($article['type'] !== 'service' && $qte > (int)$article['stock']) {
-            throw new RuntimeException('Stock insuffisant pour : ' . $article['nom']);
+            throw new RuntimeException('Stock insuffisant pour : ' . $article['nom'] . ' (disponible : ' . (int)$article['stock'] . ').');
         }
 
         $prixUnitaire = get_prix_effectif($pdo, $articleId, $qte, (float)$article['prix_vente']); // prix serveur (avec paliers dégressifs), jamais celui envoyé par le client
@@ -96,6 +99,11 @@ try {
     } else {
         $remiseValeur = 0;
     }
+    if ($remiseMontant <= 0) {
+        $remiseType = 'aucune';
+        $remiseValeur = 0;
+        $remiseMontant = 0.0;
+    }
     $montantTotal = round($montantBrut - $remiseMontant, 2);
 
     // Montant payé = somme des paiements saisis (jamais confiance dans un total envoyé par le client).
@@ -115,7 +123,7 @@ try {
     }
     $montantPaye = round(array_sum(array_column($paiements, 'montant')), 2);
 
-    if ($montantPaye <= 0.0) {
+    if ($montantPaye <= 0.0 && $montantTotal > 0) {
         $statutPaiement = 'impayee';
     } elseif ($montantPaye < $montantTotal - 0.009) {
         $statutPaiement = 'partielle';
@@ -139,9 +147,9 @@ try {
 
     $numeroFacture = generate_reference(get_param('prefixe_facture', 'FAC'));
 
-    $stmt = $pdo->prepare('INSERT INTO ventes (numero_facture, client_id, user_id, montant_brut, remise_type, remise_valeur, remise_montant, montant_total, montant_paye, monnaie_rendue, mode_paiement, statut_paiement, statut)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,"validee")');
-    $stmt->execute([$numeroFacture, $clientId, $_SESSION['user_id'], $montantBrut, $remiseType, $remiseValeur, $remiseMontant, $montantTotal, $montantPaye, $monnaieRendue, $modePaiement, $statutPaiement]);
+    $stmt = $pdo->prepare('INSERT INTO ventes (numero_facture, client_id, user_id, montant_brut, remise_type, remise_valeur, remise_montant, montant_total, montant_paye, monnaie_rendue, mode_paiement, statut_paiement, statut, observations)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,"validee",?)');
+    $stmt->execute([$numeroFacture, $clientId, $_SESSION['user_id'], $montantBrut, $remiseType, $remiseValeur, $remiseMontant, $montantTotal, $montantPaye, $monnaieRendue, $modePaiement, $statutPaiement, $observations]);
     $venteId = (int)$pdo->lastInsertId();
 
     if (!empty($paiements)) {
@@ -169,9 +177,21 @@ try {
     $pdo->commit();
     log_activity('vente', "Vente $numeroFacture - " . fmt_money($montantTotal));
 
-    echo json_encode(['success' => true, 'vente_id' => $venteId, 'numero' => $numeroFacture]);
+    json_response([
+        'success' => true,
+        'vente_id' => $venteId,
+        'numero' => $numeroFacture,
+        'montant_total' => $montantTotal,
+        'montant_paye' => $montantPaye,
+        'monnaie_rendue' => $monnaieRendue,
+        'reste_a_payer' => round($montantTotal - $montantPaye, 2),
+        'statut_paiement' => $statutPaiement,
+    ]);
 } catch (Exception $e) {
-    $pdo->rollBack();
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     error_log('vente valider: ' . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => $e->getMessage() ?: 'Erreur lors de l\'enregistrement de la vente.']);
+    $message = $e instanceof RuntimeException ? $e->getMessage() : 'Erreur lors de l\'enregistrement de la vente.';
+    json_response(['success' => false, 'message' => $message]);
 }

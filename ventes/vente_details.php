@@ -5,13 +5,7 @@
  * Usage : vente_details.php?id=12
  */
 require_once __DIR__ . '/../includes/auth.php';
-header('Content-Type: application/json; charset=utf-8');
-
-if (!is_logged_in() || !has_role('admin', 'vendeur')) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Accès non autorisé.']);
-    exit;
-}
+require_api_login(['admin', 'vendeur']);
 
 $pdo = Database::getConnection();
 $id = (int)($_GET['id'] ?? 0);
@@ -27,9 +21,7 @@ $stmt->execute([$id]);
 $vente = $stmt->fetch();
 
 if (!$vente) {
-    http_response_code(404);
-    echo json_encode(['success' => false, 'message' => 'Vente introuvable.']);
-    exit;
+    json_response(['success' => false, 'message' => 'Vente introuvable.'], 404);
 }
 
 $stmt = $pdo->prepare("
@@ -51,7 +43,7 @@ $stmt = $pdo->prepare("
 $stmt->execute([$id]);
 $paiements = $stmt->fetchAll();
 
-echo json_encode([
+json_response([
     'success' => true,
     'vente' => [
         'id' => (int)$vente['id'],
@@ -60,7 +52,7 @@ echo json_encode([
         'client' => $vente['client_nom'] ? trim($vente['client_nom'] . ' ' . $vente['client_prenom']) : 'Client de passage',
         'client_tel' => $vente['client_tel'],
         'vendeur' => $vente['vendeur_nom'],
-        'mode_paiement' => ucfirst(str_replace('_', ' ', $vente['mode_paiement'])),
+        'mode_paiement' => mode_paiement_label($vente['mode_paiement']),
         'statut' => $vente['statut'],
         'statut_paiement' => $vente['statut_paiement'],
         'montant_brut' => (float)$vente['montant_brut'],
@@ -82,7 +74,7 @@ echo json_encode([
         'sous_total' => (float)$l['sous_total'],
     ], $lignes),
     'paiements' => array_map(fn($p) => [
-        'mode_paiement' => ucfirst(str_replace('_', ' ', $p['mode_paiement'])),
+        'mode_paiement' => mode_paiement_label($p['mode_paiement']),
         'montant' => (float)$p['montant'],
         'note' => $p['note'],
         'date' => fmt_datetime($p['created_at']),
