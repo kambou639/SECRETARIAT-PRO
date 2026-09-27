@@ -1,9 +1,10 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_role('admin');
+require_post_csrf('liste.php');
 $pdo = Database::getConnection();
 
-$id = (int)($_GET['id'] ?? 0);
+$id = (int)($_POST['id'] ?? $_GET['id'] ?? 0);
 $stmt = $pdo->prepare('SELECT * FROM articles WHERE id = ?');
 $stmt->execute([$id]);
 $article = $stmt->fetch();
@@ -15,14 +16,13 @@ if ($article) {
         $check->execute([$id]);
         if ((int)$check->fetch()['c'] > 0) {
             $pdo->prepare('UPDATE articles SET actif = 0 WHERE id = ?')->execute([$id]);
+            log_activity('article_desactivation', "Article désactivé : {$article['nom']}");
             flash_set('warning', 'Cet article a un historique de ventes : il a été désactivé plutôt que supprimé.');
         } else {
-            if (!empty($article['image']) && file_exists(UPLOAD_ARTICLES . '/' . $article['image'])) {
-                @unlink(UPLOAD_ARTICLES . '/' . $article['image']);
-            }
             $pdo->prepare('DELETE FROM articles WHERE id = ?')->execute([$id]);
+            delete_upload(UPLOAD_ARTICLES, $article['image']);
             log_activity('article_suppression', "Article supprimé : {$article['nom']}");
-            flash_set('success', 'Article supprimé avec succès.');
+            flash_set('success', 'Article « ' . $article['nom'] . ' » supprimé.');
         }
     } catch (Exception $e) {
         error_log('article delete: ' . $e->getMessage());
@@ -32,4 +32,4 @@ if ($article) {
     flash_set('danger', 'Article introuvable.');
 }
 
-redirect('liste.php');
+redirect_back('liste.php', ['liste.php']);

@@ -492,13 +492,20 @@
           var asc = !th.classList.contains('is-asc');
           SP.$$('thead th', table).forEach(function (h) { h.classList.remove('is-asc', 'is-desc'); });
           th.classList.add(asc ? 'is-asc' : 'is-desc');
-          var rows = SP.$$('tr', tbody).filter(function (r) { return !r.hasAttribute('data-sp-static'); });
+          var rows = SP.$$('tr', tbody).filter(function (r) { return !r.hasAttribute('data-sp-static') && !r.hasAttribute('data-sp-empty'); });
+          // Les lignes « compagnons » (ex. formulaire d'édition repliable) suivent leur ligne
+          var companions = new Map();
+          rows.forEach(function (r) {
+            var list = [], n = r.nextElementSibling;
+            while (n && n.hasAttribute('data-sp-static')) { list.push(n); n = n.nextElementSibling; }
+            companions.set(r, list);
+          });
           rows.sort(function (a, b) {
             var va = cellValue(a, index, type), vb = cellValue(b, index, type);
             if (type === 'num') return asc ? va - vb : vb - va;
             return asc ? va.localeCompare(vb, 'fr') : vb.localeCompare(va, 'fr');
           });
-          rows.forEach(function (r) { tbody.appendChild(r); });
+          rows.forEach(function (r) { tbody.appendChild(r); companions.get(r).forEach(function (c) { tbody.appendChild(c); }); });
           if (!reduceMotion && rows.length <= 150) {
             rows.forEach(function (r, i) {
               if (r.animate) r.animate([{ opacity: 0.35, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, delay: Math.min(i, 20) * 12, easing: 'ease-out' });
@@ -516,7 +523,7 @@
     var target = typeof targetSelector === 'string' ? document.querySelector(targetSelector) : targetSelector;
     if (!input || !target) return;
     var isTable = target.tagName === 'TABLE';
-    var getItems = function () { return isTable ? SP.$$('tbody tr:not([data-sp-empty])', target) : SP.$$(itemSelector || '[data-filter-item]', target); };
+    var getItems = function () { return isTable ? SP.$$('tbody tr:not([data-sp-empty]):not([data-sp-static])', target) : SP.$$(itemSelector || '[data-filter-item]', target); };
     var counter = input.getAttribute('data-sp-filter-count') ? document.querySelector(input.getAttribute('data-sp-filter-count')) : null;
     var emptyRow = null;
     var run = function () {
