@@ -1,0 +1,21 @@
+# Secrétariat Pro - Configuration Apache racine
+
+# Désactive la liste des répertoires
+Options -Indexes
+
+# Empêche l'accès direct aux fichiers sensibles
+<FilesMatch "\.(sql|log|md|env)$">
+    Require all denied
+</FilesMatch>
+
+# En-têtes de sécurité de base
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Remarque : l'affichage des erreurs PHP est déjà désactivé dans config.php (ini_set).
+# On évite ici toute directive php_flag/php_value : sur la plupart des hébergements
+# mutualisés, PHP tourne en CGI/FPM et Apache renvoie une erreur 500 sur tout le
+# dossier dès qu'il rencontre ce type de directive dans un .htaccess.
