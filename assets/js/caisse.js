@@ -975,6 +975,14 @@
   var restored = restore();
   applyStateToForm();
   refresh({});
+  if (D.preselectClient) {
+    var pre = D.clients.filter(function (c) { return c.id === D.preselectClient; })[0];
+    if (pre) {
+      selectClient(pre.id, pre.label);
+      SP.toast({ type: 'info', title: 'Client sélectionné', message: pre.label, duration: 2500 });
+    }
+    if (window.history && history.replaceState) history.replaceState(null, '', 'caisse.php');
+  }
   if (restored) {
     SP.toast({ type: 'info', title: 'Panier restauré', message: 'La vente en cours avant le rechargement a été récupérée.' + (restored.dropped ? ' ' + restored.dropped + ' article(s) indisponible(s) retiré(s).' : ''), duration: 4000 });
   }

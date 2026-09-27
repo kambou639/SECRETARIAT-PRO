@@ -570,6 +570,54 @@ function statut_rdv_meta(?string $statut): array
     ][$statut] ?? [ucfirst((string)$statut), 'neutral', 'fa-circle'];
 }
 
+/** Heure « HH:MM » ou « HH:MM:SS » valide, normalisée en « HH:MM:00 » ; sinon $default. */
+function valid_time(?string $time, ?string $default = null): ?string
+{
+    if (preg_match('/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/', (string)$time, $m)) {
+        return $m[1] . ':' . $m[2] . ':00';
+    }
+    return $default;
+}
+
+/** Nom de la personne liée à un rendez-vous (client lié en priorité, sinon contact libre). */
+function rdv_personne(array $r): string
+{
+    if (!empty($r['client_nom'])) {
+        return trim($r['client_nom'] . ' ' . ($r['client_prenom'] ?? ''));
+    }
+    return (string)($r['contact_nom'] ?? '');
+}
+
+/** Message de rappel (WhatsApp) pour un rendez-vous. */
+function rdv_message_rappel(array $r): string
+{
+    $personne = rdv_personne($r);
+    return 'Bonjour' . ($personne !== '' ? ' ' . $personne : '') . ', nous vous rappelons votre rendez-vous « ' . $r['titre'] . ' » le '
+        . fmt_date_fr_long($r['date_rdv']) . ' à ' . substr($r['heure_debut'], 0, 5) . (!empty($r['lieu']) ? ' (' . $r['lieu'] . ')' : '')
+        . ". Merci de nous prévenir en cas d'empêchement. " . get_param('nom_entreprise', APP_NAME);
+}
+
+/** Heure de fin effective : heure de fin saisie, sinon début + 30 minutes (bornée à 23:59). */
+function rdv_fin_effective(string $debut, ?string $fin): string
+{
+    if ($fin) {
+        return $fin;
+    }
+    $ts = strtotime('1970-01-01 ' . $debut . ' UTC') + 1800;
+    return $ts >= 86400 ? '23:59:59' : gmdate('H:i:s', $ts);
+}
+
+/** Rendez-vous actifs du même jour dont le créneau chevauche [$debut ; $fin[. */
+function rdv_conflits(PDO $pdo, string $date, string $debut, ?string $fin, int $exclureId = 0): array
+{
+    $stmt = $pdo->prepare("SELECT id, titre, heure_debut, heure_fin FROM rendezvous
+        WHERE date_rdv = ? AND statut <> 'annule' AND id <> ?
+          AND heure_debut < ? AND COALESCE(heure_fin, ADDTIME(heure_debut, '00:30:00')) > ?
+        ORDER BY heure_debut");
+    $stmt->execute([$date, $exclureId, rdv_fin_effective($debut, $fin), $debut]);
+    return $stmt->fetchAll();
+}
+
 function statut_paiement_meta(?string $statut): array
 {
     return [

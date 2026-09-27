@@ -16,12 +16,12 @@ $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();
     $type = ($_POST['type'] ?? '') === 'entreprise' ? 'entreprise' : 'particulier';
-    $nom = clean_input($_POST['nom'] ?? '');
-    $prenom = clean_input($_POST['prenom'] ?? '');
-    $telephone = clean_input($_POST['telephone'] ?? '');
-    $email = clean_input($_POST['email'] ?? '');
-    $ville = clean_input($_POST['ville'] ?? '');
-    $adresse = clean_input($_POST['adresse'] ?? '');
+    $nom = mb_substr(clean_input($_POST['nom'] ?? ''), 0, 100);
+    $prenom = $type === 'entreprise' ? '' : mb_substr(clean_input($_POST['prenom'] ?? ''), 0, 100);
+    $telephone = mb_substr(clean_input($_POST['telephone'] ?? ''), 0, 30);
+    $email = mb_substr(clean_input($_POST['email'] ?? ''), 0, 150);
+    $ville = mb_substr(clean_input($_POST['ville'] ?? ''), 0, 100);
+    $adresse = mb_substr(clean_input($_POST['adresse'] ?? ''), 0, 255);
     $notes = clean_input($_POST['notes'] ?? '');
 
     if ($nom === '') {
@@ -33,10 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         $stmt = $pdo->prepare('UPDATE clients SET type=?, nom=?, prenom=?, telephone=?, email=?, adresse=?, ville=?, notes=? WHERE id=?');
-        $stmt->execute([$type, $nom, $prenom, $telephone, $email, $adresse, $ville, $notes, $id]);
-        log_activity('client_modification', "Client modifié : $nom");
+        $stmt->execute([$type, $nom, $prenom ?: null, $telephone ?: null, $email ?: null, $adresse ?: null, $ville ?: null, $notes ?: null, $id]);
+        log_activity('client_modification', "Client modifié : " . trim("$nom $prenom"));
         flash_set('success', 'Client mis à jour.');
-        redirect('liste.php');
+        redirect('fiche.php?id=' . $id);
     } else {
         $client = array_merge($client, $_POST);
     }
@@ -46,6 +46,11 @@ $pageTitle = 'Modifier le client';
 $activeMenu = 'clients';
 include __DIR__ . '/../includes/header.php';
 ?>
-<div class="sp-card"><div class="sp-card-header"><h6>Modifier : <?= e($client['nom']) ?></h6></div>
-<div class="sp-card-body"><?php include __DIR__ . '/_form.php'; ?></div></div>
+<div class="sp-card">
+    <div class="sp-card-header">
+        <h6><?= avatar_html(trim($client['nom'] . ' ' . ($client['prenom'] ?? '')), 'sm') ?> <?= e(trim($client['nom'] . ' ' . ($client['prenom'] ?? ''))) ?></h6>
+        <a href="fiche.php?id=<?= $id ?>" class="btn btn-sm btn-ghost"><i class="fa-solid fa-arrow-left me-1"></i>Fiche client</a>
+    </div>
+    <div class="sp-card-body"><?php include __DIR__ . '/_form.php'; ?></div>
+</div>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

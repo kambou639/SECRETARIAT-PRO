@@ -439,6 +439,7 @@ window.SP_CAISSE = <?= js_json([
     'paliers'    => $paliers,
     'clients'    => array_map(fn($c) => ['id' => (int)$c['id'], 'label' => trim($c['nom'] . ' ' . ($c['prenom'] ?? '')), 'tel' => $c['telephone'] ?? ''], $clients),
     'formatRecu' => get_param('format_recu', 'a4') === 'ticket' ? 'ticket' : 'a4',
+    'preselectClient' => (int)($_GET['client'] ?? 0),
     'user'       => (int)$_SESSION['user_id'],
 ]) ?>;
 </script>
